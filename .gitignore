@@ -1,0 +1,14 @@
+__pycache__/
+*.pyc
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Local task/user data (do not commit)
+data/
+tasks.json
+
+# OS/editor
+.DS_Store
+Thumbs.db
+.vscode/

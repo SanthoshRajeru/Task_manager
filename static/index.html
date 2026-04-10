@@ -1,0 +1,1953 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Task Manager</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+    <style>
+        :root {
+            --bg: #0b1020;
+            --bg-soft: #131a2f;
+            --card: rgba(16, 23, 42, 0.72);
+            --card-border: rgba(148, 163, 184, 0.22);
+            --text: #f8fafc;
+            --muted: #94a3b8;
+            --primary: #6366f1;
+            --primary-strong: #4f46e5;
+            --success: #10b981;
+            --danger: #ef4444;
+            --warning: #f59e0b;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            min-height: 100vh;
+            font-family: "Inter", "Segoe UI", Arial, sans-serif;
+            color: var(--text);
+            background:
+                radial-gradient(1100px 700px at 90% -10%, #4338ca 0%, rgba(67, 56, 202, 0) 60%),
+                radial-gradient(900px 600px at -10% 10%, #0ea5e9 0%, rgba(14, 165, 233, 0) 55%),
+                linear-gradient(160deg, var(--bg) 0%, var(--bg-soft) 100%);
+            padding: 28px;
+        }
+
+        .app-shell {
+            max-width: 1080px;
+            margin: 0 auto;
+        }
+
+        .hero {
+            display: flex;
+            justify-content: space-between;
+            gap: 20px;
+            align-items: center;
+            margin-bottom: 20px;
+            padding: 24px;
+            border-radius: 20px;
+            background: linear-gradient(145deg, rgba(99, 102, 241, 0.18), rgba(14, 165, 233, 0.14));
+            border: 1px solid rgba(148, 163, 184, 0.26);
+            backdrop-filter: blur(8px);
+        }
+
+        .hero h1 {
+            margin: 0 0 6px 0;
+            font-size: clamp(28px, 5vw, 36px);
+            letter-spacing: -0.02em;
+        }
+
+        .hero p {
+            margin: 0;
+            color: #dbeafe;
+            font-size: 15px;
+        }
+
+        .stats {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+
+        .stat-pill {
+            min-width: 128px;
+            padding: 10px 12px;
+            border-radius: 12px;
+            background: rgba(15, 23, 42, 0.5);
+            border: 1px solid rgba(148, 163, 184, 0.22);
+        }
+
+        .stat-label {
+            display: block;
+            color: var(--muted);
+            font-size: 12px;
+            margin-bottom: 4px;
+        }
+
+        .stat-value {
+            font-weight: 700;
+            font-size: 18px;
+        }
+
+        .panel {
+            background: var(--card);
+            border: 1px solid var(--card-border);
+            border-radius: 18px;
+            padding: 18px;
+            backdrop-filter: blur(10px);
+            box-shadow: 0 14px 30px rgba(2, 6, 23, 0.32);
+        }
+
+        .auth-panel {
+            margin-bottom: 14px;
+        }
+
+        .auth-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr auto auto;
+            gap: 10px;
+            align-items: center;
+        }
+
+        .auth-logged-in {
+            grid-template-columns: 1fr auto auto;
+        }
+
+        .auth-message {
+            min-height: 18px;
+            font-size: 12px;
+            color: #cbd5e1;
+            margin-top: 8px;
+        }
+
+        .auth-message.error {
+            color: #fecaca;
+        }
+
+        .auth-link {
+            margin-top: 8px;
+            width: fit-content;
+            font-size: 12px;
+            color: #93c5fd;
+            cursor: pointer;
+            text-decoration: underline;
+            text-underline-offset: 2px;
+        }
+
+        .auth-link:hover {
+            color: #dbeafe;
+        }
+
+        .auth-user {
+            font-size: 13px;
+            color: #93c5fd;
+            font-weight: 600;
+        }
+
+        .change-password-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr auto auto;
+            gap: 10px;
+            margin-top: 10px;
+        }
+
+        .forgot-password-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr auto auto;
+            gap: 10px;
+            margin-top: 10px;
+        }
+
+        .hidden {
+            display: none;
+        }
+
+        .protected-sections.locked {
+            opacity: 0.45;
+            pointer-events: none;
+            user-select: none;
+        }
+
+        .task-form {
+            display: grid;
+            grid-template-columns: 1.8fr 0.95fr 0.85fr auto;
+            gap: 10px;
+            margin-bottom: 10px;
+        }
+
+        .filter-row {
+            display: grid;
+            grid-template-columns: 1.5fr 1fr 1fr 1fr 1fr auto;
+            gap: 10px;
+            margin-bottom: 16px;
+        }
+
+        .field,
+        .select,
+        .date-input,
+        .btn {
+            border-radius: 12px;
+            border: 1px solid rgba(148, 163, 184, 0.3);
+            font-size: 14px;
+            outline: none;
+        }
+
+        .field,
+        .select,
+        .date-input {
+            height: 44px;
+            padding: 0 12px;
+            color: var(--text);
+            background: rgba(15, 23, 42, 0.75);
+        }
+
+        .date-input {
+            cursor: pointer;
+        }
+
+        .field::placeholder {
+            color: #94a3b8;
+        }
+
+        .date-pill {
+            height: 44px;
+            display: flex;
+            align-items: center;
+            padding: 0 12px;
+            border-radius: 12px;
+            border: 1px solid rgba(148, 163, 184, 0.22);
+            background: rgba(15, 23, 42, 0.55);
+            color: #cbd5e1;
+            font-size: 13px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .date-pill.empty {
+            border-style: dashed;
+            background: rgba(15, 23, 42, 0.45);
+            color: rgba(203, 213, 225, 0.75);
+            padding: 10px 12px;
+            height: 44px;
+        }
+
+        .field-area {
+            border-radius: 12px;
+            border: 1px solid rgba(148, 163, 184, 0.3);
+            font-size: 14px;
+            outline: none;
+            min-height: 72px;
+            padding: 10px 12px;
+            color: var(--text);
+            background: rgba(15, 23, 42, 0.75);
+            resize: vertical;
+        }
+
+        .task-form-note {
+            grid-column: 1 / -1;
+        }
+
+        .btn {
+            height: 44px;
+            padding: 0 16px;
+            color: #eef2ff;
+            background: linear-gradient(120deg, var(--primary), var(--primary-strong));
+            cursor: pointer;
+            transition: transform 0.16s ease, box-shadow 0.16s ease;
+            font-weight: 600;
+        }
+
+        .btn:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 8px 18px rgba(79, 70, 229, 0.3);
+        }
+
+        .error {
+            color: #fecaca;
+            min-height: 20px;
+            margin: 0 0 12px 2px;
+            font-size: 13px;
+        }
+
+        .task-list {
+            display: grid;
+            gap: 10px;
+        }
+
+        .task-card {
+            display: grid;
+            grid-template-columns: 78px minmax(180px, 1fr) 170px 160px 150px 132px;
+            gap: 10px;
+            align-items: center;
+            padding: 12px;
+            border-radius: 14px;
+            background: rgba(15, 23, 42, 0.8);
+            border: 1px solid rgba(148, 163, 184, 0.2);
+            transition: border-color 0.16s ease, transform 0.16s ease;
+        }
+
+        .task-card:hover {
+            border-color: rgba(99, 102, 241, 0.6);
+            transform: translateY(-1px);
+        }
+
+        .task-id {
+            width: fit-content;
+            min-width: 60px;
+            text-align: center;
+            padding: 7px 10px;
+            border-radius: 999px;
+            background: rgba(99, 102, 241, 0.16);
+            border: 1px solid rgba(129, 140, 248, 0.45);
+            font-weight: 700;
+            font-size: 13px;
+        }
+
+        .task-title {
+            font-weight: 600;
+            line-height: 1.35;
+            word-break: break-word;
+        }
+
+        .task-sub {
+            margin-top: 3px;
+            color: var(--muted);
+            font-size: 12px;
+        }
+
+        .task-notes {
+            margin-top: 6px;
+            color: #cbd5e1;
+            font-size: 12px;
+            line-height: 1.4;
+            white-space: pre-wrap;
+            word-break: break-word;
+        }
+
+        .task-description-toggle {
+            margin-top: 8px;
+            color: #7dd3fc;
+            font-size: 12px;
+            cursor: pointer;
+            width: fit-content;
+            text-decoration: underline;
+            text-underline-offset: 2px;
+        }
+
+        .task-description-toggle:hover {
+            color: #bae6fd;
+        }
+
+        .task-notes-panel {
+            margin-top: 8px;
+            padding: 8px 10px;
+            border-radius: 10px;
+            border: 1px solid rgba(148, 163, 184, 0.26);
+            background: rgba(30, 41, 59, 0.5);
+        }
+
+        .task-notes-label {
+            font-size: 11px;
+            color: #93c5fd;
+            letter-spacing: 0.02em;
+            margin-bottom: 4px;
+        }
+
+        .field.task-title-edit {
+            width: 100%;
+            height: 40px;
+        }
+
+        .field-area.task-notes-edit {
+            margin-top: 8px;
+            min-height: 64px;
+        }
+
+        .select.task-status,
+        .select.task-priority,
+        .date-input.task-date {
+            width: 100%;
+        }
+
+        .flatpickr-calendar {
+            background: #0f172a;
+            border: 1px solid rgba(148, 163, 184, 0.32);
+            box-shadow: 0 14px 34px rgba(2, 6, 23, 0.6);
+        }
+
+        .flatpickr-day {
+            color: #e2e8f0;
+        }
+
+        .flatpickr-day:hover {
+            background: rgba(99, 102, 241, 0.22);
+            border-color: rgba(99, 102, 241, 0.22);
+        }
+
+        .flatpickr-day.selected,
+        .flatpickr-day.startRange,
+        .flatpickr-day.endRange {
+            background: #4f46e5;
+            border-color: #4f46e5;
+        }
+
+        .flatpickr-months .flatpickr-month,
+        .flatpickr-current-month .flatpickr-monthDropdown-months,
+        .flatpickr-current-month input.cur-year,
+        span.flatpickr-weekday {
+            color: #e2e8f0;
+        }
+
+        .delete {
+            height: 40px;
+            border: 1px solid rgba(239, 68, 68, 0.36);
+            border-radius: 12px;
+            background: rgba(239, 68, 68, 0.2);
+            color: #fee2e2;
+            cursor: pointer;
+            font-weight: 600;
+            transition: background 0.16s ease;
+        }
+
+        .delete:hover {
+            background: rgba(239, 68, 68, 0.34);
+        }
+
+        .icon-btn {
+            width: 40px;
+            height: 40px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: 0;
+        }
+
+        .icon-btn svg {
+            width: 18px;
+            height: 18px;
+            stroke: currentColor;
+        }
+
+        .action-group {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 6px;
+            justify-items: end;
+        }
+
+        .mini-btn {
+            height: 34px;
+            border-radius: 10px;
+            border: 1px solid rgba(148, 163, 184, 0.3);
+            color: #e2e8f0;
+            background: rgba(30, 41, 59, 0.8);
+            cursor: pointer;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .mini-btn.edit {
+            border-color: rgba(99, 102, 241, 0.42);
+            background: rgba(99, 102, 241, 0.18);
+        }
+
+        .mini-btn.save {
+            border-color: rgba(16, 185, 129, 0.45);
+            background: rgba(16, 185, 129, 0.2);
+        }
+
+        .mini-btn.cancel {
+            border-color: rgba(148, 163, 184, 0.35);
+            background: rgba(71, 85, 105, 0.36);
+        }
+
+        .btn-ghost {
+            height: 44px;
+            border-radius: 12px;
+            border: 1px solid rgba(148, 163, 184, 0.34);
+            background: rgba(15, 23, 42, 0.72);
+            color: #e2e8f0;
+            cursor: pointer;
+            font-weight: 600;
+            padding: 0 14px;
+        }
+
+        .btn-ghost:hover {
+            background: rgba(30, 41, 59, 0.9);
+        }
+
+        .empty {
+            text-align: center;
+            padding: 38px 12px;
+            border-radius: 14px;
+            color: #cbd5e1;
+            border: 1px dashed rgba(148, 163, 184, 0.35);
+            background: rgba(15, 23, 42, 0.45);
+        }
+
+        .analytics-panel {
+            margin-top: 16px;
+        }
+
+        .analytics-title {
+            margin: 0 0 12px 0;
+            font-size: 18px;
+            letter-spacing: 0.01em;
+        }
+
+        .analytics-grid {
+            display: grid;
+            gap: 10px;
+            grid-template-columns: repeat(5, minmax(0, 1fr));
+            margin-bottom: 12px;
+        }
+
+        .analytics-card {
+            border-radius: 12px;
+            border: 1px solid rgba(148, 163, 184, 0.25);
+            background: rgba(15, 23, 42, 0.72);
+            padding: 10px;
+        }
+
+        .analytics-card-label {
+            color: var(--muted);
+            font-size: 12px;
+            margin-bottom: 6px;
+        }
+
+        .analytics-card-value {
+            font-size: 22px;
+            font-weight: 700;
+        }
+
+        .analytics-card-value.success {
+            color: #6ee7b7;
+        }
+
+        .analytics-card-value.danger {
+            color: #fca5a5;
+        }
+
+        .analytics-card-value.warning {
+            color: #fcd34d;
+        }
+
+        .analytics-charts {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+        }
+
+        .chart-card {
+            border-radius: 12px;
+            border: 1px solid rgba(148, 163, 184, 0.25);
+            background: rgba(15, 23, 42, 0.72);
+            padding: 12px;
+        }
+
+        .chart-title {
+            margin: 0 0 10px 0;
+            font-size: 14px;
+            color: #dbeafe;
+        }
+
+        .bar-list {
+            display: grid;
+            gap: 8px;
+        }
+
+        .bar-row {
+            display: grid;
+            grid-template-columns: 88px 1fr 44px;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .bar-label {
+            color: #cbd5e1;
+            font-size: 12px;
+        }
+
+        .bar-track {
+            width: 100%;
+            height: 8px;
+            border-radius: 999px;
+            background: rgba(100, 116, 139, 0.32);
+            overflow: hidden;
+        }
+
+        .bar-fill {
+            height: 100%;
+            border-radius: 999px;
+            background: linear-gradient(90deg, #6366f1, #22d3ee);
+            width: 0%;
+            transition: width 0.25s ease;
+        }
+
+        .bar-value {
+            text-align: right;
+            font-size: 12px;
+            color: #e2e8f0;
+        }
+
+        .calendar-panel {
+            margin-top: 16px;
+        }
+
+        .calendar-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+            gap: 12px;
+        }
+
+        .calendar-title {
+            margin: 0;
+            font-size: 18px;
+            letter-spacing: 0.01em;
+        }
+
+        .calendar-nav {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .calendar-month-label {
+            min-width: 150px;
+            text-align: center;
+            font-weight: 600;
+            color: #dbeafe;
+        }
+
+        .calendar-btn {
+            width: 34px;
+            height: 34px;
+            border-radius: 10px;
+            border: 1px solid rgba(148, 163, 184, 0.34);
+            background: rgba(30, 41, 59, 0.9);
+            color: #dbeafe;
+            cursor: pointer;
+            font-size: 16px;
+        }
+
+        .calendar-grid {
+            display: grid;
+            grid-template-columns: repeat(7, minmax(0, 1fr));
+            gap: 8px;
+        }
+
+        .calendar-weekday {
+            text-align: center;
+            font-size: 12px;
+            color: #93c5fd;
+            padding: 4px 0;
+        }
+
+        .calendar-day {
+            min-height: 106px;
+            border-radius: 12px;
+            border: 1px solid rgba(148, 163, 184, 0.22);
+            background: rgba(15, 23, 42, 0.72);
+            padding: 8px;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .calendar-day.other-month {
+            opacity: 0.45;
+        }
+
+        .calendar-day.today {
+            border-color: rgba(56, 189, 248, 0.75);
+            box-shadow: inset 0 0 0 1px rgba(56, 189, 248, 0.35);
+        }
+
+        .calendar-day-number {
+            font-size: 12px;
+            font-weight: 700;
+            color: #e2e8f0;
+        }
+
+        .calendar-task-chip {
+            border-radius: 999px;
+            font-size: 10px;
+            padding: 3px 8px;
+            width: fit-content;
+            max-width: 100%;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            border: 1px solid transparent;
+        }
+
+        .calendar-task-chip.todo {
+            color: #bfdbfe;
+            background: rgba(59, 130, 246, 0.16);
+            border-color: rgba(59, 130, 246, 0.35);
+        }
+
+        .calendar-task-chip.in_progress {
+            color: #fde68a;
+            background: rgba(245, 158, 11, 0.2);
+            border-color: rgba(245, 158, 11, 0.35);
+        }
+
+        .calendar-task-chip.done {
+            color: #86efac;
+            background: rgba(16, 185, 129, 0.2);
+            border-color: rgba(16, 185, 129, 0.35);
+            text-decoration: line-through;
+        }
+
+        .priority-low {
+            color: #6ee7b7;
+        }
+        .priority-medium {
+            color: #fcd34d;
+        }
+        .priority-high {
+            color: #fda4af;
+        }
+
+        @media (max-width: 980px) {
+            .task-card {
+                grid-template-columns: 78px minmax(160px, 1fr) 1fr 1fr;
+            }
+
+            .task-card .date-input.task-date,
+            .task-card .select.task-priority {
+                grid-column: span 1;
+            }
+        }
+
+        @media (max-width: 820px) {
+            body {
+                padding: 16px;
+            }
+
+            .hero {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+
+            .task-form {
+                grid-template-columns: 1fr;
+            }
+
+            .filter-row {
+                grid-template-columns: 1fr;
+            }
+
+            .auth-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .change-password-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .forgot-password-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .task-card {
+                grid-template-columns: 1fr;
+                align-items: stretch;
+            }
+
+            .analytics-grid {
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+            }
+
+            .analytics-charts {
+                grid-template-columns: 1fr;
+            }
+
+            .delete {
+                width: 100%;
+            }
+
+            .calendar-grid {
+                gap: 6px;
+            }
+
+            .calendar-day {
+                min-height: 90px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="app-shell">
+        <header class="hero">
+            <div>
+                <h1>Daily Task Manager</h1>
+                <p>Plan your day with clarity, focus, and momentum.</p>
+            </div>
+            <div class="stats">
+                <div class="stat-pill">
+                    <span class="stat-label">Total Tasks</span>
+                    <span class="stat-value" id="stat-total">0</span>
+                </div>
+                <div class="stat-pill">
+                    <span class="stat-label">Completed</span>
+                    <span class="stat-value" id="stat-done">0</span>
+                </div>
+                <div class="stat-pill">
+                    <span class="stat-label">High Priority</span>
+                    <span class="stat-value" id="stat-high">0</span>
+                </div>
+            </div>
+        </header>
+
+        <section class="panel auth-panel">
+            <div id="auth-logged-out" class="auth-grid">
+                <input id="auth-username" class="field" type="text" placeholder="Username" maxlength="50" />
+                <input id="auth-password" class="field" type="password" placeholder="Password" maxlength="128" />
+                <button id="auth-login" class="btn" type="button">Login</button>
+                <button id="auth-register" class="btn-ghost" type="button">Register</button>
+            </div>
+            <div id="auth-forgot-password-link" class="auth-link">Forgot password?</div>
+            <div id="forgot-password-form" class="forgot-password-grid hidden">
+                <input id="auth-forgot-username" class="field" type="text" placeholder="User ID / Username" maxlength="50" />
+                <input id="auth-forgot-new-password" class="field" type="password" placeholder="New password" maxlength="128" />
+                <button id="auth-forgot-save" class="btn" type="button">Reset Password</button>
+                <button id="auth-forgot-cancel" class="btn-ghost" type="button">Back to login</button>
+            </div>
+            <div id="forgot-password-success" class="forgot-password-grid hidden">
+                <div class="auth-user">Password reset successful.</div>
+                <div class="auth-message">Click below to return to login.</div>
+                <button id="auth-forgot-go-login" class="btn" type="button">Go to login</button>
+            </div>
+            <div id="auth-logged-in" class="auth-grid auth-logged-in hidden">
+                <div id="auth-user" class="auth-user"></div>
+                <button id="auth-change-password-toggle" class="btn-ghost" type="button">Change Password</button>
+                <button id="auth-logout" class="btn-ghost" type="button">Logout</button>
+            </div>
+            <div id="change-password-form" class="change-password-grid hidden">
+                <input id="auth-old-password" class="field" type="password" placeholder="Current password" maxlength="128" />
+                <input id="auth-new-password" class="field" type="password" placeholder="New password" maxlength="128" />
+                <button id="auth-change-password-save" class="btn" type="button">Save</button>
+                <button id="auth-change-password-cancel" class="btn-ghost" type="button">Cancel</button>
+            </div>
+            <div id="auth-message" class="auth-message">Login or register to access your personal tasks.</div>
+        </section>
+
+        <div id="protected-sections" class="protected-sections locked">
+        <section class="panel">
+            <form id="task-form" class="task-form">
+                <input id="task-title" class="field" type="text" placeholder="What do you want to get done today?" maxlength="120" required />
+                <input id="task-due-date" class="date-input" type="text" placeholder="YYYY-MM-DD" />
+                <select id="task-priority" class="select">
+                    <option value="low">Low</option>
+                    <option value="medium" selected>Medium</option>
+                    <option value="high">High</option>
+                </select>
+                <button type="submit" class="btn">Add Task</button>
+                <textarea id="task-notes" class="field-area task-form-note" placeholder="Add task notes or description (optional)..." maxlength="600"></textarea>
+            </form>
+            <div class="filter-row">
+                <input id="filter-q" class="field" type="text" placeholder="Search tasks by title or notes..." />
+                <select id="filter-status" class="select">
+                    <option value="">All Status</option>
+                    <option value="todo">To Do</option>
+                    <option value="in_progress">In Progress</option>
+                    <option value="done">Done</option>
+                </select>
+                <select id="filter-priority" class="select">
+                    <option value="">All Priority</option>
+                    <option value="low">Low</option>
+                    <option value="medium">Medium</option>
+                    <option value="high">High</option>
+                </select>
+                <select id="sort-by" class="select">
+                    <option value="task_id" selected>Sort: Task ID</option>
+                    <option value="task_title">Sort: Title</option>
+                    <option value="task_status">Sort: Status</option>
+                    <option value="priority">Sort: Priority</option>
+                    <option value="due_date">Sort: Due Date</option>
+                </select>
+                <select id="sort-order" class="select">
+                    <option value="asc" selected>Order: Asc</option>
+                    <option value="desc">Order: Desc</option>
+                </select>
+                <button id="clear-filters" class="btn-ghost" type="button">Clear</button>
+            </div>
+            <div id="error" class="error"></div>
+            <div id="task-list" class="task-list"></div>
+        </section>
+
+        <section class="panel analytics-panel">
+            <h2 class="analytics-title">Productivity Analytics</h2>
+            <div class="analytics-grid">
+                <div class="analytics-card">
+                    <div class="analytics-card-label">Completion Rate</div>
+                    <div id="analytics-completion-rate" class="analytics-card-value">0%</div>
+                </div>
+                <div class="analytics-card">
+                    <div class="analytics-card-label">Completed Tasks</div>
+                    <div id="analytics-completed" class="analytics-card-value success">0</div>
+                </div>
+                <div class="analytics-card">
+                    <div class="analytics-card-label">Overdue</div>
+                    <div id="analytics-overdue" class="analytics-card-value danger">0</div>
+                </div>
+                <div class="analytics-card">
+                    <div class="analytics-card-label">Due Today</div>
+                    <div id="analytics-due-today" class="analytics-card-value warning">0</div>
+                </div>
+                <div class="analytics-card">
+                    <div class="analytics-card-label">Upcoming 7 Days</div>
+                    <div id="analytics-upcoming" class="analytics-card-value">0</div>
+                </div>
+            </div>
+
+            <div class="analytics-charts">
+                <div class="chart-card">
+                    <h3 class="chart-title">Status Breakdown</h3>
+                    <div class="bar-list" id="status-chart"></div>
+                </div>
+                <div class="chart-card">
+                    <h3 class="chart-title">Priority Breakdown</h3>
+                    <div class="bar-list" id="priority-chart"></div>
+                </div>
+            </div>
+        </section>
+
+        <section class="panel calendar-panel">
+            <div class="calendar-header">
+                <h2 class="calendar-title">Calendar View</h2>
+                <div class="calendar-nav">
+                    <button id="calendar-prev" class="calendar-btn" type="button" aria-label="Previous month">&#8249;</button>
+                    <div id="calendar-month-label" class="calendar-month-label"></div>
+                    <button id="calendar-next" class="calendar-btn" type="button" aria-label="Next month">&#8250;</button>
+                </div>
+            </div>
+            <div id="calendar-grid" class="calendar-grid"></div>
+        </section>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+    <script>
+        const taskForm = document.getElementById("task-form");
+        const authLoggedOut = document.getElementById("auth-logged-out");
+        const authLoggedIn = document.getElementById("auth-logged-in");
+        const authUsernameInput = document.getElementById("auth-username");
+        const authPasswordInput = document.getElementById("auth-password");
+        const authForgotPasswordLink = document.getElementById("auth-forgot-password-link");
+        const authForgotUsernameInput = document.getElementById("auth-forgot-username");
+        const authForgotNewPasswordInput = document.getElementById("auth-forgot-new-password");
+        const authForgotSaveBtn = document.getElementById("auth-forgot-save");
+        const authForgotCancelBtn = document.getElementById("auth-forgot-cancel");
+        const forgotPasswordForm = document.getElementById("forgot-password-form");
+        const forgotPasswordSuccess = document.getElementById("forgot-password-success");
+        const authForgotGoLoginBtn = document.getElementById("auth-forgot-go-login");
+        const authOldPasswordInput = document.getElementById("auth-old-password");
+        const authNewPasswordInput = document.getElementById("auth-new-password");
+        const authLoginBtn = document.getElementById("auth-login");
+        const authRegisterBtn = document.getElementById("auth-register");
+        const authChangePasswordToggleBtn = document.getElementById("auth-change-password-toggle");
+        const authChangePasswordSaveBtn = document.getElementById("auth-change-password-save");
+        const authChangePasswordCancelBtn = document.getElementById("auth-change-password-cancel");
+        const authLogoutBtn = document.getElementById("auth-logout");
+        const authMessage = document.getElementById("auth-message");
+        const authUser = document.getElementById("auth-user");
+        const changePasswordForm = document.getElementById("change-password-form");
+        const protectedSections = document.getElementById("protected-sections");
+        const taskTitleInput = document.getElementById("task-title");
+        const taskDueDateInput = document.getElementById("task-due-date");
+        const taskPriorityInput = document.getElementById("task-priority");
+        const taskNotesInput = document.getElementById("task-notes");
+        const filterQInput = document.getElementById("filter-q");
+        const filterStatusInput = document.getElementById("filter-status");
+        const filterPriorityInput = document.getElementById("filter-priority");
+        const sortByInput = document.getElementById("sort-by");
+        const sortOrderInput = document.getElementById("sort-order");
+        const clearFiltersBtn = document.getElementById("clear-filters");
+        const taskList = document.getElementById("task-list");
+        const errorContainer = document.getElementById("error");
+        const statTotal = document.getElementById("stat-total");
+        const statDone = document.getElementById("stat-done");
+        const statHigh = document.getElementById("stat-high");
+        const analyticsCompletionRate = document.getElementById("analytics-completion-rate");
+        const analyticsCompleted = document.getElementById("analytics-completed");
+        const analyticsOverdue = document.getElementById("analytics-overdue");
+        const analyticsDueToday = document.getElementById("analytics-due-today");
+        const analyticsUpcoming = document.getElementById("analytics-upcoming");
+        const statusChart = document.getElementById("status-chart");
+        const priorityChart = document.getElementById("priority-chart");
+        const calendarPrevBtn = document.getElementById("calendar-prev");
+        const calendarNextBtn = document.getElementById("calendar-next");
+        const calendarMonthLabel = document.getElementById("calendar-month-label");
+        const calendarGrid = document.getElementById("calendar-grid");
+        const API_BASE = "/api/tasks";
+        const datePickers = [];
+        let formDatePicker = null;
+        let editingTaskId = null;
+        const expandedDescriptionTaskIds = new Set();
+        let currentCalendarDate = new Date();
+        let authToken = localStorage.getItem("task_manager_token") || "";
+        let currentUsername = localStorage.getItem("task_manager_user") || "";
+
+        function toggleChangePasswordForm(show) {
+            if (show) {
+                changePasswordForm.classList.remove("hidden");
+            } else {
+                changePasswordForm.classList.add("hidden");
+                authOldPasswordInput.value = "";
+                authNewPasswordInput.value = "";
+            }
+        }
+
+        function toggleForgotPasswordForm(show) {
+            if (show) {
+                forgotPasswordForm.classList.remove("hidden");
+                authForgotPasswordLink.classList.add("hidden");
+                forgotPasswordSuccess.classList.add("hidden");
+                authForgotUsernameInput.value = authUsernameInput.value.trim().toLowerCase();
+            } else {
+                forgotPasswordForm.classList.add("hidden");
+                authForgotPasswordLink.classList.remove("hidden");
+                forgotPasswordSuccess.classList.add("hidden");
+                authForgotUsernameInput.value = "";
+                authForgotNewPasswordInput.value = "";
+            }
+        }
+
+        function showForgotPasswordSuccess(username) {
+            authUsernameInput.value = (username || "").trim().toLowerCase();
+            forgotPasswordForm.classList.add("hidden");
+            forgotPasswordSuccess.classList.remove("hidden");
+            authForgotPasswordLink.classList.add("hidden");
+        }
+
+        function hideForgotPasswordViews() {
+            forgotPasswordForm.classList.add("hidden");
+            forgotPasswordSuccess.classList.add("hidden");
+            authForgotPasswordLink.classList.add("hidden");
+            authForgotUsernameInput.value = "";
+            authForgotNewPasswordInput.value = "";
+        }
+
+        function setSectionVisibility(element, visible) {
+            if (!element) {
+                return;
+            }
+            if (visible) {
+                element.classList.remove("hidden");
+                element.removeAttribute("hidden");
+                element.style.display = "";
+            } else {
+                element.classList.add("hidden");
+                element.setAttribute("hidden", "hidden");
+                element.style.display = "none";
+            }
+        }
+
+        function applyAuthLayout(loggedIn) {
+            if (loggedIn) {
+                setSectionVisibility(authLoggedOut, false);
+                setSectionVisibility(authLoggedIn, true);
+                setSectionVisibility(authForgotPasswordLink, false);
+                setSectionVisibility(forgotPasswordForm, false);
+                setSectionVisibility(forgotPasswordSuccess, false);
+            } else {
+                setSectionVisibility(authLoggedOut, true);
+                setSectionVisibility(authLoggedIn, false);
+                setSectionVisibility(authForgotPasswordLink, true);
+                setSectionVisibility(forgotPasswordForm, false);
+                setSectionVisibility(forgotPasswordSuccess, false);
+            }
+        }
+
+        function setAuthState(token, username) {
+            authToken = token || "";
+            currentUsername = username || "";
+
+            if (authToken && currentUsername) {
+                localStorage.setItem("task_manager_token", authToken);
+                localStorage.setItem("task_manager_user", currentUsername);
+                authUser.textContent = `Logged in as ${currentUsername}`;
+                applyAuthLayout(true);
+                hideForgotPasswordViews();
+                authMessage.textContent = "Authenticated. Your tasks are private to this account.";
+                authMessage.classList.remove("error");
+                protectedSections.classList.remove("locked");
+                toggleChangePasswordForm(false);
+            } else {
+                localStorage.removeItem("task_manager_token");
+                localStorage.removeItem("task_manager_user");
+                authUser.textContent = "";
+                applyAuthLayout(false);
+                authMessage.textContent = "Login or register to access your personal tasks.";
+                authMessage.classList.remove("error");
+                protectedSections.classList.add("locked");
+                toggleChangePasswordForm(false);
+                authForgotUsernameInput.value = "";
+                authForgotNewPasswordInput.value = "";
+            }
+        }
+
+        function setAuthError(message) {
+            authMessage.textContent = message;
+            authMessage.classList.add("error");
+        }
+
+        async function apiFetch(url, options = {}, requireAuth = true) {
+            const headers = { ...(options.headers || {}) };
+            if (!headers["Content-Type"] && options.body) {
+                headers["Content-Type"] = "application/json";
+            }
+
+            if (requireAuth) {
+                if (!authToken) {
+                    throw new Error("Please login first.");
+                }
+                headers.Authorization = `Bearer ${authToken}`;
+            }
+
+            const response = await fetch(url, { ...options, headers });
+
+            if (response.status === 401 && requireAuth) {
+                setAuthState("", "");
+                throw new Error("Session expired. Please login again.");
+            }
+
+            return response;
+        }
+
+        async function readErrorMessage(response, fallbackMessage) {
+            try {
+                const payload = await response.json();
+                if (payload && payload.detail) {
+                    if (typeof payload.detail === "string") {
+                        return payload.detail;
+                    }
+                    if (Array.isArray(payload.detail)) {
+                        return payload.detail
+                            .map((item) => item && item.msg ? item.msg : null)
+                            .filter(Boolean)
+                            .join(" | ") || fallbackMessage;
+                    }
+                }
+            } catch (error) {
+                // No-op fallback below.
+            }
+            return fallbackMessage;
+        }
+
+        function clearDatePickers() {
+            while (datePickers.length) {
+                const picker = datePickers.pop();
+                if (picker && typeof picker.destroy === "function") {
+                    picker.destroy();
+                }
+            }
+        }
+
+        function formatDateWithHyphens(rawValue) {
+            const digits = rawValue.replace(/\D/g, "").slice(0, 8);
+            const parts = [];
+            if (digits.length > 0) {
+                parts.push(digits.slice(0, 4));
+            }
+            if (digits.length > 4) {
+                parts.push(digits.slice(4, 6));
+            }
+            if (digits.length > 6) {
+                parts.push(digits.slice(6, 8));
+            }
+            return parts.join("-");
+        }
+
+        function attachAutoHyphenDateInput(element) {
+            element.addEventListener("input", () => {
+                const formatted = formatDateWithHyphens(element.value);
+                if (element.value !== formatted) {
+                    element.value = formatted;
+                }
+            });
+        }
+
+        function mountDatePicker(element, initialDate, onSave, trackForCleanup = true) {
+            attachAutoHyphenDateInput(element);
+
+            if (typeof flatpickr !== "function") {
+                if (initialDate) {
+                    element.value = initialDate;
+                }
+                element.addEventListener("change", () => {
+                    onSave(element.value || null);
+                });
+                return null;
+            }
+
+            let lastSentValue = initialDate || null;
+            const picker = flatpickr(element, {
+                dateFormat: "Y-m-d",
+                allowInput: true,
+                defaultDate: initialDate || null,
+                disableMobile: true,
+                onClose: (_, dateStr) => {
+                    const current = dateStr || null;
+                    if (current !== lastSentValue) {
+                        lastSentValue = current;
+                        onSave(current);
+                    }
+                }
+            });
+            element.addEventListener("change", () => {
+                const current = element.value || null;
+                if (current !== lastSentValue) {
+                    lastSentValue = current;
+                    onSave(current);
+                }
+            });
+
+            if (trackForCleanup) {
+                datePickers.push(picker);
+            }
+            return picker;
+        }
+
+        function buildTasksUrl() {
+            const params = new URLSearchParams();
+            const q = filterQInput.value.trim();
+            const status = filterStatusInput.value;
+            const priority = filterPriorityInput.value;
+            const sortBy = sortByInput.value;
+            const sortOrder = sortOrderInput.value;
+
+            if (q) {
+                params.set("q", q);
+            }
+            if (status) {
+                params.set("status", status);
+            }
+            if (priority) {
+                params.set("priority", priority);
+            }
+            if (sortBy) {
+                params.set("sort_by", sortBy);
+            }
+            if (sortOrder) {
+                params.set("sort_order", sortOrder);
+            }
+
+            const queryString = params.toString();
+            return queryString ? `${API_BASE}?${queryString}` : API_BASE;
+        }
+
+        async function fetchTasks() {
+            if (!authToken) {
+                taskList.innerHTML = "<div class='empty'>Login to view your tasks.</div>";
+                renderCalendar([]);
+                renderAnalytics({
+                    completion_rate: 0,
+                    completed_tasks: 0,
+                    overdue_count: 0,
+                    due_today_count: 0,
+                    upcoming_7_days_count: 0,
+                    status_counts: { todo: 0, in_progress: 0, done: 0 },
+                    priority_counts: { low: 0, medium: 0, high: 0 },
+                    total_tasks: 0
+                });
+                updateStats([]);
+                return;
+            }
+
+            try {
+                const [tasksResponse, analyticsResponse, calendarResponse] = await Promise.all([
+                    apiFetch(buildTasksUrl()),
+                    apiFetch(`${API_BASE}/analytics`),
+                    apiFetch(`${API_BASE}?sort_by=due_date&sort_order=asc`)
+                ]);
+
+                if (!tasksResponse.ok) {
+                    throw new Error("Unable to load tasks.");
+                }
+                if (!analyticsResponse.ok) {
+                    throw new Error("Unable to load analytics.");
+                }
+                if (!calendarResponse.ok) {
+                    throw new Error("Unable to load calendar tasks.");
+                }
+
+                const tasks = await tasksResponse.json();
+                const analytics = await analyticsResponse.json();
+                const calendarTasks = await calendarResponse.json();
+                renderTasks(tasks);
+                updateStats(tasks);
+                renderAnalytics(analytics);
+                renderCalendar(calendarTasks);
+            } catch (error) {
+                showError(error.message);
+            }
+        }
+
+        function dateKey(value) {
+            const year = value.getFullYear();
+            const month = String(value.getMonth() + 1).padStart(2, "0");
+            const day = String(value.getDate()).padStart(2, "0");
+            return `${year}-${month}-${day}`;
+        }
+
+        function renderCalendar(tasks) {
+            const firstOfMonth = new Date(
+                currentCalendarDate.getFullYear(),
+                currentCalendarDate.getMonth(),
+                1
+            );
+            const monthLabel = firstOfMonth.toLocaleString("en-US", {
+                month: "long",
+                year: "numeric"
+            });
+            calendarMonthLabel.textContent = monthLabel;
+
+            const tasksByDate = {};
+            tasks.forEach((task) => {
+                if (!task.due_date) {
+                    return;
+                }
+                if (!tasksByDate[task.due_date]) {
+                    tasksByDate[task.due_date] = [];
+                }
+                tasksByDate[task.due_date].push(task);
+            });
+
+            calendarGrid.innerHTML = "";
+            ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].forEach((weekday) => {
+                const header = document.createElement("div");
+                header.className = "calendar-weekday";
+                header.textContent = weekday;
+                calendarGrid.appendChild(header);
+            });
+
+            const startDay = firstOfMonth.getDay();
+            const firstCellDate = new Date(firstOfMonth);
+            firstCellDate.setDate(firstOfMonth.getDate() - startDay);
+
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+
+            for (let i = 0; i < 42; i += 1) {
+                const cellDate = new Date(firstCellDate);
+                cellDate.setDate(firstCellDate.getDate() + i);
+
+                const dayCell = document.createElement("div");
+                dayCell.className = "calendar-day";
+                if (cellDate.getMonth() !== firstOfMonth.getMonth()) {
+                    dayCell.classList.add("other-month");
+                }
+                if (dateKey(cellDate) === dateKey(today)) {
+                    dayCell.classList.add("today");
+                }
+
+                const dayNumber = document.createElement("div");
+                dayNumber.className = "calendar-day-number";
+                dayNumber.textContent = String(cellDate.getDate());
+                dayCell.appendChild(dayNumber);
+
+                const dayTasks = tasksByDate[dateKey(cellDate)] || [];
+                dayTasks.slice(0, 3).forEach((task) => {
+                    const chip = document.createElement("div");
+                    chip.className = `calendar-task-chip ${task.task_status}`;
+                    chip.title = task.task_title;
+                    chip.textContent = `#${task.task_id} ${task.task_title}`;
+                    dayCell.appendChild(chip);
+                });
+
+                if (dayTasks.length > 3) {
+                    const more = document.createElement("div");
+                    more.className = "task-sub";
+                    more.textContent = `+${dayTasks.length - 3} more`;
+                    dayCell.appendChild(more);
+                }
+
+                calendarGrid.appendChild(dayCell);
+            }
+        }
+
+        function buildBarChart(container, entries, total) {
+            container.innerHTML = "";
+            entries.forEach((entry) => {
+                const row = document.createElement("div");
+                row.className = "bar-row";
+
+                const label = document.createElement("div");
+                label.className = "bar-label";
+                label.textContent = entry.label;
+
+                const track = document.createElement("div");
+                track.className = "bar-track";
+
+                const fill = document.createElement("div");
+                fill.className = "bar-fill";
+                const percentage = total > 0 ? (entry.value / total) * 100 : 0;
+                fill.style.width = `${percentage}%`;
+                track.appendChild(fill);
+
+                const value = document.createElement("div");
+                value.className = "bar-value";
+                value.textContent = String(entry.value);
+
+                row.appendChild(label);
+                row.appendChild(track);
+                row.appendChild(value);
+                container.appendChild(row);
+            });
+        }
+
+        function renderAnalytics(analytics) {
+            analyticsCompletionRate.textContent = `${analytics.completion_rate}%`;
+            analyticsCompleted.textContent = String(analytics.completed_tasks);
+            analyticsOverdue.textContent = String(analytics.overdue_count);
+            analyticsDueToday.textContent = String(analytics.due_today_count);
+            analyticsUpcoming.textContent = String(analytics.upcoming_7_days_count);
+
+            buildBarChart(
+                statusChart,
+                [
+                    { label: "To Do", value: analytics.status_counts.todo || 0 },
+                    { label: "In Progress", value: analytics.status_counts.in_progress || 0 },
+                    { label: "Done", value: analytics.status_counts.done || 0 }
+                ],
+                analytics.total_tasks || 0
+            );
+
+            buildBarChart(
+                priorityChart,
+                [
+                    { label: "Low", value: analytics.priority_counts.low || 0 },
+                    { label: "Medium", value: analytics.priority_counts.medium || 0 },
+                    { label: "High", value: analytics.priority_counts.high || 0 }
+                ],
+                analytics.total_tasks || 0
+            );
+        }
+
+        function updateStats(tasks) {
+            const doneCount = tasks.filter((task) => task.task_status === "done").length;
+            const highCount = tasks.filter((task) => task.priority === "high").length;
+            statTotal.textContent = String(tasks.length);
+            statDone.textContent = String(doneCount);
+            statHigh.textContent = String(highCount);
+        }
+
+        function renderTasks(tasks) {
+            clearDatePickers();
+            errorContainer.textContent = "";
+            taskList.innerHTML = "";
+
+            if (!tasks.length) {
+                taskList.innerHTML = "<div class='empty'>No tasks yet. Add your first daily task to get started.</div>";
+                return;
+            }
+
+            tasks.forEach((task) => {
+                const row = document.createElement("div");
+                row.className = "task-card";
+                const isEditing = editingTaskId === task.task_id;
+                const isDescriptionExpanded = expandedDescriptionTaskIds.has(task.task_id);
+
+                const idCell = document.createElement("div");
+                idCell.className = "task-id";
+                idCell.textContent = `#${task.task_id}`;
+
+                const contentCell = document.createElement("div");
+                const meta = document.createElement("div");
+                meta.className = `task-sub priority-${task.priority || "medium"}`;
+                meta.textContent = `Priority: ${(task.priority || "medium").toUpperCase()}`;
+                let titleEditInput = null;
+                let notesEditInput = null;
+
+                if (isEditing) {
+                    titleEditInput = document.createElement("input");
+                    titleEditInput.className = "field task-title-edit";
+                    titleEditInput.type = "text";
+                    titleEditInput.maxLength = 120;
+                    titleEditInput.value = task.task_title;
+                    notesEditInput = document.createElement("textarea");
+                    notesEditInput.className = "field-area task-notes-edit";
+                    notesEditInput.maxLength = 600;
+                    notesEditInput.placeholder = "Add task notes or description...";
+                    notesEditInput.value = task.task_notes || "";
+                    contentCell.appendChild(titleEditInput);
+                    contentCell.appendChild(meta);
+                    contentCell.appendChild(notesEditInput);
+                } else {
+                    const title = document.createElement("div");
+                    title.className = "task-title";
+                    title.textContent = task.task_title;
+                    contentCell.appendChild(title);
+                    contentCell.appendChild(meta);
+
+                    const taskNotesValue = task.task_notes || task.notes || "";
+                    const descToggle = document.createElement("div");
+                    descToggle.className = "task-description-toggle";
+                    descToggle.textContent = isDescriptionExpanded
+                        ? "Hide description"
+                        : "Show description";
+                    descToggle.addEventListener("click", async () => {
+                        if (expandedDescriptionTaskIds.has(task.task_id)) {
+                            expandedDescriptionTaskIds.delete(task.task_id);
+                        } else {
+                            expandedDescriptionTaskIds.add(task.task_id);
+                        }
+                        await fetchTasks();
+                    });
+                    contentCell.appendChild(descToggle);
+
+                    if (isDescriptionExpanded) {
+                        const notesPanel = document.createElement("div");
+                        notesPanel.className = "task-notes-panel";
+
+                        const notesLabel = document.createElement("div");
+                        notesLabel.className = "task-notes-label";
+                        notesLabel.textContent = "DESCRIPTION";
+
+                        const notes = document.createElement("div");
+                        notes.className = "task-notes";
+                        notes.textContent = taskNotesValue
+                            ? taskNotesValue
+                            : "No description added for this task.";
+
+                        notesPanel.appendChild(notesLabel);
+                        notesPanel.appendChild(notes);
+                        contentCell.appendChild(notesPanel);
+                    }
+                }
+
+                const statusSelect = document.createElement("select");
+                statusSelect.className = "select task-status";
+                [
+                    { value: "todo", label: "To Do" },
+                    { value: "in_progress", label: "In Progress" },
+                    { value: "done", label: "Done" }
+                ].forEach((status) => {
+                    const option = document.createElement("option");
+                    option.value = status.value;
+                    option.textContent = status.label;
+                    if (task.task_status === status.value) {
+                        option.selected = true;
+                    }
+                    statusSelect.appendChild(option);
+                });
+                statusSelect.addEventListener("change", async () => {
+                    await updateTaskStatus(task.task_id, statusSelect.value);
+                });
+
+                let dueDateCell = null;
+                if (isEditing) {
+                    const dueDateInput = document.createElement("input");
+                    dueDateInput.className = "date-input task-date";
+                    dueDateInput.type = "text";
+                    dueDateInput.placeholder = "YYYY-MM-DD";
+                    mountDatePicker(dueDateInput, task.due_date || null, async (dateValue) => {
+                        await updateTaskDetails(task.task_id, {
+                            due_date: dateValue
+                        });
+                    });
+                    dueDateCell = dueDateInput;
+                } else {
+                    const dueDatePill = document.createElement("div");
+                    const due = task.due_date || "";
+                    dueDatePill.className = due ? "date-pill" : "date-pill empty";
+                    dueDatePill.textContent = due ? `Due: ${due}` : "No due date";
+                    dueDatePill.title = dueDatePill.textContent;
+                    dueDateCell = dueDatePill;
+                }
+
+                const prioritySelect = document.createElement("select");
+                prioritySelect.className = "select task-priority";
+                [
+                    { value: "low", label: "Low" },
+                    { value: "medium", label: "Medium" },
+                    { value: "high", label: "High" }
+                ].forEach((priority) => {
+                    const option = document.createElement("option");
+                    option.value = priority.value;
+                    option.textContent = priority.label;
+                    if ((task.priority || "medium") === priority.value) {
+                        option.selected = true;
+                    }
+                    prioritySelect.appendChild(option);
+                });
+                prioritySelect.addEventListener("change", async () => {
+                    await updateTaskDetails(task.task_id, {
+                        priority: prioritySelect.value
+                    });
+                });
+
+                const actionCell = document.createElement("div");
+                actionCell.className = "action-group";
+
+                if (isEditing) {
+                    const saveBtn = document.createElement("button");
+                    saveBtn.className = "mini-btn save";
+                    saveBtn.type = "button";
+                    saveBtn.textContent = "Save";
+                    saveBtn.addEventListener("click", async () => {
+                        const newTitle = titleEditInput.value.trim();
+                        if (!newTitle) {
+                            showError("Task title is required.");
+                            return;
+                        }
+                        editingTaskId = null;
+                        await updateTaskContent(
+                            task.task_id,
+                            newTitle,
+                            notesEditInput ? notesEditInput.value : ""
+                        );
+                    });
+
+                    const cancelBtn = document.createElement("button");
+                    cancelBtn.className = "mini-btn cancel";
+                    cancelBtn.type = "button";
+                    cancelBtn.textContent = "Cancel";
+                    cancelBtn.addEventListener("click", async () => {
+                        editingTaskId = null;
+                        await fetchTasks();
+                    });
+
+                    actionCell.appendChild(saveBtn);
+                    actionCell.appendChild(cancelBtn);
+                } else {
+                    const editBtn = document.createElement("button");
+                    editBtn.className = "mini-btn edit icon-btn";
+                    editBtn.type = "button";
+                    editBtn.title = "Edit task";
+                    editBtn.setAttribute("aria-label", "Edit task");
+                    editBtn.innerHTML = `
+                        <svg viewBox="0 0 24 24" fill="none" stroke-width="2" aria-hidden="true">
+                            <path d="M12 20h9"></path>
+                            <path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z"></path>
+                        </svg>
+                    `;
+                    editBtn.addEventListener("click", async () => {
+                        editingTaskId = task.task_id;
+                        await fetchTasks();
+                    });
+
+                    const deleteBtn = document.createElement("button");
+                    deleteBtn.className = "delete icon-btn";
+                    deleteBtn.type = "button";
+                    deleteBtn.title = "Delete task";
+                    deleteBtn.setAttribute("aria-label", "Delete task");
+                    deleteBtn.innerHTML = `
+                        <svg viewBox="0 0 24 24" fill="none" stroke-width="2" aria-hidden="true">
+                            <polyline points="3 6 5 6 21 6"></polyline>
+                            <path d="M8 6V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2"></path>
+                            <path d="M19 6l-1 14a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1L5 6"></path>
+                            <line x1="10" y1="11" x2="10" y2="17"></line>
+                            <line x1="14" y1="11" x2="14" y2="17"></line>
+                        </svg>
+                    `;
+                    deleteBtn.addEventListener("click", async () => {
+                        await deleteTask(task.task_id);
+                    });
+
+                    actionCell.appendChild(editBtn);
+                    actionCell.appendChild(deleteBtn);
+                }
+
+                row.appendChild(idCell);
+                row.appendChild(contentCell);
+                row.appendChild(statusSelect);
+                row.appendChild(dueDateCell);
+                row.appendChild(prioritySelect);
+                row.appendChild(actionCell);
+                taskList.appendChild(row);
+            });
+        }
+
+        async function createTask(title, dueDate, priority, notes) {
+            const response = await apiFetch(API_BASE, {
+                method: "POST",
+                body: JSON.stringify({
+                    title,
+                    due_date: dueDate || null,
+                    priority,
+                    notes
+                })
+            });
+            if (!response.ok) {
+                throw new Error(await readErrorMessage(response, "Unable to create task."));
+            }
+        }
+
+        async function updateTaskStatus(taskId, status) {
+            const response = await apiFetch(`${API_BASE}/${taskId}/status`, {
+                method: "PATCH",
+                body: JSON.stringify({ status })
+            });
+            if (!response.ok) {
+                throw new Error(await readErrorMessage(response, "Unable to update task status."));
+            }
+            await fetchTasks();
+        }
+
+        async function updateTaskDetails(taskId, updates) {
+            const response = await apiFetch(`${API_BASE}/${taskId}/details`, {
+                method: "PATCH",
+                body: JSON.stringify(updates)
+            });
+            if (!response.ok) {
+                throw new Error(await readErrorMessage(response, "Unable to update due date/priority."));
+            }
+            await fetchTasks();
+        }
+
+        async function updateTaskContent(taskId, taskTitle, taskNotes) {
+            const response = await apiFetch(`${API_BASE}/${taskId}/content`, {
+                method: "PATCH",
+                body: JSON.stringify({
+                    task_title: taskTitle,
+                    task_notes: taskNotes || ""
+                })
+            });
+            if (!response.ok) {
+                throw new Error(await readErrorMessage(response, "Unable to update task content."));
+            }
+            await fetchTasks();
+        }
+
+        async function deleteTask(taskId) {
+            const response = await apiFetch(`${API_BASE}/${taskId}`, { method: "DELETE" });
+            if (!response.ok) {
+                throw new Error(await readErrorMessage(response, "Unable to delete task."));
+            }
+            await fetchTasks();
+        }
+
+        function showError(message) {
+            errorContainer.textContent = message;
+        }
+
+        taskForm.addEventListener("submit", async (event) => {
+            event.preventDefault();
+            const title = taskTitleInput.value.trim();
+            if (!title) {
+                showError("Task title is required.");
+                return;
+            }
+
+            try {
+                await createTask(
+                    title,
+                    taskDueDateInput.value,
+                    taskPriorityInput.value,
+                    taskNotesInput.value.trim()
+                );
+                taskTitleInput.value = "";
+                taskDueDateInput.value = "";
+                taskPriorityInput.value = "medium";
+                taskNotesInput.value = "";
+                await fetchTasks();
+            } catch (error) {
+                showError(error.message);
+            }
+        });
+
+        filterQInput.addEventListener("input", async () => {
+            await fetchTasks();
+        });
+
+        filterStatusInput.addEventListener("change", async () => {
+            await fetchTasks();
+        });
+
+        filterPriorityInput.addEventListener("change", async () => {
+            await fetchTasks();
+        });
+
+        sortByInput.addEventListener("change", async () => {
+            await fetchTasks();
+        });
+
+        sortOrderInput.addEventListener("change", async () => {
+            await fetchTasks();
+        });
+
+        clearFiltersBtn.addEventListener("click", async () => {
+            filterQInput.value = "";
+            filterStatusInput.value = "";
+            filterPriorityInput.value = "";
+            sortByInput.value = "task_id";
+            sortOrderInput.value = "asc";
+            await fetchTasks();
+        });
+
+        calendarPrevBtn.addEventListener("click", async () => {
+            currentCalendarDate = new Date(
+                currentCalendarDate.getFullYear(),
+                currentCalendarDate.getMonth() - 1,
+                1
+            );
+            await fetchTasks();
+        });
+
+        calendarNextBtn.addEventListener("click", async () => {
+            currentCalendarDate = new Date(
+                currentCalendarDate.getFullYear(),
+                currentCalendarDate.getMonth() + 1,
+                1
+            );
+            await fetchTasks();
+        });
+
+        formDatePicker = mountDatePicker(taskDueDateInput, null, () => {}, false);
+
+        authLoginBtn.addEventListener("click", async () => {
+            const username = authUsernameInput.value.trim().toLowerCase();
+            const password = authPasswordInput.value;
+            if (!username || !password) {
+                setAuthError("Username and password are required.");
+                return;
+            }
+
+            const response = await apiFetch(
+                "/api/auth/login",
+                {
+                    method: "POST",
+                    body: JSON.stringify({ username, password })
+                },
+                false
+            );
+            if (!response.ok) {
+                setAuthError(await readErrorMessage(response, "Login failed."));
+                return;
+            }
+            const payload = await response.json();
+            setAuthState(payload.access_token, payload.username);
+            authPasswordInput.value = "";
+            await fetchTasks();
+        });
+
+        authRegisterBtn.addEventListener("click", async () => {
+            const username = authUsernameInput.value.trim().toLowerCase();
+            const password = authPasswordInput.value;
+            if (!username || !password) {
+                setAuthError("Username and password are required.");
+                return;
+            }
+
+            const response = await apiFetch(
+                "/api/auth/register",
+                {
+                    method: "POST",
+                    body: JSON.stringify({ username, password })
+                },
+                false
+            );
+            if (!response.ok) {
+                setAuthError(await readErrorMessage(response, "Registration failed."));
+                return;
+            }
+            const payload = await response.json();
+            setAuthState(payload.access_token, payload.username);
+            authPasswordInput.value = "";
+            await fetchTasks();
+        });
+
+        authLogoutBtn.addEventListener("click", async () => {
+            if (authToken) {
+                await apiFetch("/api/auth/logout", { method: "POST" }).catch(() => null);
+            }
+            setAuthState("", "");
+            await fetchTasks();
+        });
+
+        authForgotPasswordLink.addEventListener("click", () => {
+            setSectionVisibility(authLoggedOut, false);
+            toggleForgotPasswordForm(true);
+        });
+
+        authForgotCancelBtn.addEventListener("click", () => {
+            toggleForgotPasswordForm(false);
+            setSectionVisibility(authLoggedOut, true);
+        });
+
+        authForgotSaveBtn.addEventListener("click", async () => {
+            const username = authForgotUsernameInput.value.trim().toLowerCase();
+            const newPassword = authForgotNewPasswordInput.value;
+            if (!username || !newPassword) {
+                setAuthError("Username and new password are required for reset.");
+                return;
+            }
+
+            const response = await apiFetch(
+                "/api/auth/forgot-password",
+                {
+                    method: "POST",
+                    body: JSON.stringify({
+                        username,
+                        new_password: newPassword
+                    })
+                },
+                false
+            );
+            if (!response.ok) {
+                setAuthError(await readErrorMessage(response, "Unable to reset password."));
+                return;
+            }
+
+            showForgotPasswordSuccess(username);
+            authMessage.textContent = "Password reset successful. Please login.";
+            authMessage.classList.remove("error");
+        });
+
+        authForgotGoLoginBtn.addEventListener("click", () => {
+            forgotPasswordSuccess.classList.add("hidden");
+            toggleForgotPasswordForm(false);
+            authPasswordInput.value = "";
+            authPasswordInput.focus();
+        });
+
+        authChangePasswordToggleBtn.addEventListener("click", () => {
+            const isHidden = changePasswordForm.classList.contains("hidden");
+            toggleChangePasswordForm(isHidden);
+        });
+
+        authChangePasswordCancelBtn.addEventListener("click", () => {
+            toggleChangePasswordForm(false);
+        });
+
+        authChangePasswordSaveBtn.addEventListener("click", async () => {
+            const oldPassword = authOldPasswordInput.value;
+            const newPassword = authNewPasswordInput.value;
+            if (!oldPassword || !newPassword) {
+                setAuthError("Current and new password are required.");
+                return;
+            }
+
+            const response = await apiFetch("/api/auth/change-password", {
+                method: "POST",
+                body: JSON.stringify({
+                    old_password: oldPassword,
+                    new_password: newPassword
+                })
+            });
+            if (!response.ok) {
+                setAuthError(await readErrorMessage(response, "Unable to change password."));
+                return;
+            }
+
+            toggleChangePasswordForm(false);
+            authMessage.textContent = "Password changed successfully.";
+            authMessage.classList.remove("error");
+        });
+
+        setAuthState(authToken, currentUsername);
+        fetchTasks();
+    </script>
+</body>
+</html>
