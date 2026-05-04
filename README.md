@@ -29,3 +29,9 @@ This is a separate FastAPI-based project for managing daily tasks.
 4. Open browser:
    - `http://127.0.0.1:8010`
 5. Register a new account (or login) from the auth panel.
+
+## One-Click Windows Launcher
+- A launcher script is included: `Run Task Manager Server.bat`.
+- It activates the FastAPI environment and starts `main.py`.
+- If port `8010` is already in use, it assumes the server is already running and opens `http://127.0.0.1:8010` instead of starting a duplicate server.
+- If startup fails, it shows the error message and keeps the window open so you can read the issue.
