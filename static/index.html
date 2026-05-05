@@ -173,7 +173,7 @@
 
         .task-form {
             display: grid;
-            grid-template-columns: 1.8fr 0.95fr 0.85fr auto;
+            grid-template-columns: 1.5fr 0.95fr 0.85fr 1fr auto;
             gap: 10px;
             margin-bottom: 10px;
         }
@@ -317,6 +317,22 @@
             margin-top: 3px;
             color: var(--muted);
             font-size: 12px;
+        }
+
+        .task-tags {
+            margin-top: 8px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+        }
+
+        .tag-pill {
+            padding: 4px 8px;
+            border-radius: 999px;
+            font-size: 11px;
+            color: #dbeafe;
+            border: 1px solid rgba(125, 211, 252, 0.4);
+            background: rgba(14, 116, 144, 0.26);
         }
 
         .task-notes {
@@ -850,6 +866,7 @@
                     <option value="medium" selected>Medium</option>
                     <option value="high">High</option>
                 </select>
+                <input id="task-tags" class="field" type="text" placeholder="Tags (comma separated)" maxlength="240" />
                 <button type="submit" class="btn">Add Task</button>
                 <textarea id="task-notes" class="field-area task-form-note" placeholder="Add task notes or description (optional)..." maxlength="600"></textarea>
             </form>
@@ -874,10 +891,8 @@
                     <option value="priority">Sort: Priority</option>
                     <option value="due_date">Sort: Due Date</option>
                 </select>
-                <select id="sort-order" class="select">
-                    <option value="asc" selected>Order: Asc</option>
-                    <option value="desc">Order: Desc</option>
-                </select>
+                <input id="filter-tag" class="field" type="text" list="filter-tag-suggestions" placeholder="Filter by tag (single or comma separated)" />
+                <datalist id="filter-tag-suggestions"></datalist>
                 <button id="clear-filters" class="btn-ghost" type="button">Clear</button>
             </div>
             <div id="error" class="error"></div>
@@ -965,12 +980,14 @@
         const taskTitleInput = document.getElementById("task-title");
         const taskDueDateInput = document.getElementById("task-due-date");
         const taskPriorityInput = document.getElementById("task-priority");
+        const taskTagsInput = document.getElementById("task-tags");
         const taskNotesInput = document.getElementById("task-notes");
         const filterQInput = document.getElementById("filter-q");
         const filterStatusInput = document.getElementById("filter-status");
         const filterPriorityInput = document.getElementById("filter-priority");
         const sortByInput = document.getElementById("sort-by");
-        const sortOrderInput = document.getElementById("sort-order");
+        const filterTagInput = document.getElementById("filter-tag");
+        const filterTagSuggestions = document.getElementById("filter-tag-suggestions");
         const clearFiltersBtn = document.getElementById("clear-filters");
         const taskList = document.getElementById("task-list");
         const errorContainer = document.getElementById("error");
@@ -1218,13 +1235,22 @@
             return picker;
         }
 
+        function parseTagsInput(rawTags) {
+            return [...new Set(
+                rawTags
+                    .split(",")
+                    .map((tag) => tag.trim())
+                    .filter((tag) => tag.length > 0)
+            )];
+        }
+
         function buildTasksUrl() {
             const params = new URLSearchParams();
             const q = filterQInput.value.trim();
             const status = filterStatusInput.value;
             const priority = filterPriorityInput.value;
             const sortBy = sortByInput.value;
-            const sortOrder = sortOrderInput.value;
+            const tag = filterTagInput.value.trim();
 
             if (q) {
                 params.set("q", q);
@@ -1238,17 +1264,47 @@
             if (sortBy) {
                 params.set("sort_by", sortBy);
             }
-            if (sortOrder) {
-                params.set("sort_order", sortOrder);
+            if (tag) {
+                params.set("tag", tag);
             }
 
             const queryString = params.toString();
             return queryString ? `${API_BASE}?${queryString}` : API_BASE;
         }
 
+        function updateTagSuggestions(tasks) {
+            const uniqueTagMap = new Map();
+
+            tasks.forEach((task) => {
+                const tags = Array.isArray(task.task_tags) ? task.task_tags : [];
+                tags.forEach((tag) => {
+                    const cleanTag = (tag || "").trim();
+                    if (!cleanTag) {
+                        return;
+                    }
+                    const key = cleanTag.toLowerCase();
+                    if (!uniqueTagMap.has(key)) {
+                        uniqueTagMap.set(key, cleanTag);
+                    }
+                });
+            });
+
+            const sortedTags = [...uniqueTagMap.values()].sort((a, b) =>
+                a.localeCompare(b, undefined, { sensitivity: "base" })
+            );
+
+            filterTagSuggestions.innerHTML = "";
+            sortedTags.forEach((tag) => {
+                const option = document.createElement("option");
+                option.value = tag;
+                filterTagSuggestions.appendChild(option);
+            });
+        }
+
         async function fetchTasks() {
             if (!authToken) {
                 taskList.innerHTML = "<div class='empty'>Login to view your tasks.</div>";
+                updateTagSuggestions([]);
                 renderCalendar([]);
                 renderAnalytics({
                     completion_rate: 0,
@@ -1268,7 +1324,7 @@
                 const [tasksResponse, analyticsResponse, calendarResponse] = await Promise.all([
                     apiFetch(buildTasksUrl()),
                     apiFetch(`${API_BASE}/analytics`),
-                    apiFetch(`${API_BASE}?sort_by=due_date&sort_order=asc`)
+                    apiFetch(`${API_BASE}?sort_by=due_date`)
                 ]);
 
                 if (!tasksResponse.ok) {
@@ -1285,6 +1341,7 @@
                 const analytics = await analyticsResponse.json();
                 const calendarTasks = await calendarResponse.json();
                 renderTasks(tasks);
+                updateTagSuggestions(calendarTasks);
                 updateStats(tasks);
                 renderAnalytics(analytics);
                 renderCalendar(calendarTasks);
@@ -1468,6 +1525,8 @@
                 meta.textContent = `Priority: ${(task.priority || "medium").toUpperCase()}`;
                 let titleEditInput = null;
                 let notesEditInput = null;
+                let tagsEditInput = null;
+                const taskTags = Array.isArray(task.task_tags) ? task.task_tags : [];
 
                 if (isEditing) {
                     titleEditInput = document.createElement("input");
@@ -1480,8 +1539,15 @@
                     notesEditInput.maxLength = 600;
                     notesEditInput.placeholder = "Add task notes or description...";
                     notesEditInput.value = task.task_notes || "";
+                    tagsEditInput = document.createElement("input");
+                    tagsEditInput.className = "field";
+                    tagsEditInput.type = "text";
+                    tagsEditInput.maxLength = 240;
+                    tagsEditInput.placeholder = "Tags (comma separated)";
+                    tagsEditInput.value = taskTags.join(", ");
                     contentCell.appendChild(titleEditInput);
                     contentCell.appendChild(meta);
+                    contentCell.appendChild(tagsEditInput);
                     contentCell.appendChild(notesEditInput);
                 } else {
                     const title = document.createElement("div");
@@ -1489,6 +1555,23 @@
                     title.textContent = task.task_title;
                     contentCell.appendChild(title);
                     contentCell.appendChild(meta);
+
+                    const tagsContainer = document.createElement("div");
+                    tagsContainer.className = "task-tags";
+                    if (taskTags.length) {
+                        taskTags.forEach((tag) => {
+                            const tagPill = document.createElement("span");
+                            tagPill.className = "tag-pill";
+                            tagPill.textContent = tag;
+                            tagsContainer.appendChild(tagPill);
+                        });
+                    } else {
+                        const emptyTag = document.createElement("span");
+                        emptyTag.className = "task-sub";
+                        emptyTag.textContent = "No tags";
+                        tagsContainer.appendChild(emptyTag);
+                    }
+                    contentCell.appendChild(tagsContainer);
 
                     const taskNotesValue = task.task_notes || task.notes || "";
                     const descToggle = document.createElement("div");
@@ -1605,7 +1688,8 @@
                         await updateTaskContent(
                             task.task_id,
                             newTitle,
-                            notesEditInput ? notesEditInput.value : ""
+                            notesEditInput ? notesEditInput.value : "",
+                            tagsEditInput ? tagsEditInput.value : ""
                         );
                     });
 
@@ -1669,14 +1753,15 @@
             });
         }
 
-        async function createTask(title, dueDate, priority, notes) {
+        async function createTask(title, dueDate, priority, notes, tags) {
             const response = await apiFetch(API_BASE, {
                 method: "POST",
                 body: JSON.stringify({
                     title,
                     due_date: dueDate || null,
                     priority,
-                    notes
+                    notes,
+                    tags: parseTagsInput(tags || "")
                 })
             });
             if (!response.ok) {
@@ -1706,12 +1791,13 @@
             await fetchTasks();
         }
 
-        async function updateTaskContent(taskId, taskTitle, taskNotes) {
+        async function updateTaskContent(taskId, taskTitle, taskNotes, taskTags) {
             const response = await apiFetch(`${API_BASE}/${taskId}/content`, {
                 method: "PATCH",
                 body: JSON.stringify({
                     task_title: taskTitle,
-                    task_notes: taskNotes || ""
+                    task_notes: taskNotes || "",
+                    task_tags: parseTagsInput(taskTags || "")
                 })
             });
             if (!response.ok) {
@@ -1745,11 +1831,13 @@
                     title,
                     taskDueDateInput.value,
                     taskPriorityInput.value,
-                    taskNotesInput.value.trim()
+                    taskNotesInput.value.trim(),
+                    taskTagsInput.value
                 );
                 taskTitleInput.value = "";
                 taskDueDateInput.value = "";
                 taskPriorityInput.value = "medium";
+                taskTagsInput.value = "";
                 taskNotesInput.value = "";
                 await fetchTasks();
             } catch (error) {
@@ -1773,7 +1861,7 @@
             await fetchTasks();
         });
 
-        sortOrderInput.addEventListener("change", async () => {
+        filterTagInput.addEventListener("input", async () => {
             await fetchTasks();
         });
 
@@ -1782,7 +1870,7 @@
             filterStatusInput.value = "";
             filterPriorityInput.value = "";
             sortByInput.value = "task_id";
-            sortOrderInput.value = "asc";
+            filterTagInput.value = "";
             await fetchTasks();
         });
 

@@ -37,11 +37,6 @@ class SortBy(str, Enum):
     DUE_DATE = "due_date"
 
 
-class SortOrder(str, Enum):
-    ASC = "asc"
-    DESC = "desc"
-
-
 class UserRegister(BaseModel):
     username: str = Field(min_length=3, max_length=50)
     password: str = Field(min_length=6, max_length=128)
@@ -73,6 +68,7 @@ class TaskCreate(BaseModel):
     due_date: date | None = None
     priority: TaskPriority = TaskPriority.MEDIUM
     notes: str = Field(default="", max_length=600)
+    tags: list[str] = Field(default_factory=list)
 
 
 class TaskUpdateStatus(BaseModel):
@@ -82,6 +78,7 @@ class TaskUpdateStatus(BaseModel):
 class TaskUpdateContent(BaseModel):
     task_title: str = Field(min_length=1, max_length=120)
     task_notes: str = Field(default="", max_length=600)
+    task_tags: list[str] = Field(default_factory=list)
 
 
 class TaskUpdateDetails(BaseModel):
@@ -96,6 +93,7 @@ class Task(BaseModel):
     task_status: TaskStatus
     due_date: date | None = None
     priority: TaskPriority = TaskPriority.MEDIUM
+    task_tags: list[str] = Field(default_factory=list)
 
 
 users: dict[str, dict[str, str]] = {}
@@ -200,6 +198,25 @@ def resequence_task_ids(user_tasks: dict[int, Task]) -> None:
     user_tasks.clear()
     for new_id, task in enumerate(ordered_tasks, start=1):
         user_tasks[new_id] = task.model_copy(update={"task_id": new_id})
+
+
+def normalize_tags(raw_tags: list[str]) -> list[str]:
+    normalized: list[str] = []
+    seen: set[str] = set()
+    for raw_tag in raw_tags:
+        tag = raw_tag.strip()
+        if not tag:
+            continue
+        key = tag.lower()
+        if key in seen:
+            continue
+        seen.add(key)
+        normalized.append(tag)
+    return normalized
+
+
+def normalize_tag_filter(raw_filter: str) -> list[str]:
+    return normalize_tags(raw_filter.split(","))
 
 
 def parse_bearer_token(authorization: str | None) -> str:
@@ -339,9 +356,9 @@ def forgot_password(payload: UserForgotPassword):
 def get_tasks(
     status: TaskStatus | None = None,
     priority: TaskPriority | None = None,
+    tag: str | None = None,
     q: str | None = None,
     sort_by: SortBy = SortBy.TASK_ID,
-    sort_order: SortOrder = SortOrder.ASC,
     username: str = Depends(get_current_username),
 ):
     filtered_tasks = list(get_user_tasks(username).values())
@@ -352,16 +369,29 @@ def get_tasks(
     if priority is not None:
         filtered_tasks = [task for task in filtered_tasks if task.priority == priority]
 
+    if tag:
+        requested_tags = [item.lower() for item in normalize_tag_filter(tag)]
+        if requested_tags:
+            filtered_tasks = [
+                task
+                for task in filtered_tasks
+                if any(
+                    requested in existing_tag.lower()
+                    for existing_tag in task.task_tags
+                    for requested in requested_tags
+                )
+            ]
+
     if q:
         query = q.strip().lower()
         if query:
             filtered_tasks = [
                 task
                 for task in filtered_tasks
-                if query in task.task_title.lower() or query in task.task_notes.lower()
+                if query in task.task_title.lower()
+                or query in task.task_notes.lower()
+                or any(query in existing_tag.lower() for existing_tag in task.task_tags)
             ]
-
-    reverse_sort = sort_order == SortOrder.DESC
     status_rank = {
         TaskStatus.TODO: 0,
         TaskStatus.IN_PROGRESS: 1,
@@ -374,33 +404,21 @@ def get_tasks(
     }
 
     if sort_by == SortBy.TASK_TITLE:
-        return sorted(
-            filtered_tasks, key=lambda task: task.task_title.lower(), reverse=reverse_sort
-        )
+        return sorted(filtered_tasks, key=lambda task: task.task_title.lower())
 
     if sort_by == SortBy.TASK_STATUS:
-        return sorted(
-            filtered_tasks,
-            key=lambda task: status_rank.get(task.task_status, 99),
-            reverse=reverse_sort,
-        )
+        return sorted(filtered_tasks, key=lambda task: status_rank.get(task.task_status, 99))
 
     if sort_by == SortBy.PRIORITY:
-        return sorted(
-            filtered_tasks,
-            key=lambda task: priority_rank.get(task.priority, 99),
-            reverse=reverse_sort,
-        )
+        return sorted(filtered_tasks, key=lambda task: priority_rank.get(task.priority, 99))
 
     if sort_by == SortBy.DUE_DATE:
         tasks_with_due_date = [task for task in filtered_tasks if task.due_date is not None]
         tasks_without_due_date = [task for task in filtered_tasks if task.due_date is None]
-        tasks_with_due_date = sorted(
-            tasks_with_due_date, key=lambda task: task.due_date, reverse=reverse_sort
-        )
+        tasks_with_due_date = sorted(tasks_with_due_date, key=lambda task: task.due_date)
         return tasks_with_due_date + tasks_without_due_date
 
-    return sorted(filtered_tasks, key=lambda task: task.task_id, reverse=reverse_sort)
+    return sorted(filtered_tasks, key=lambda task: task.task_id)
 
 
 @app.get("/api/tasks/analytics")
@@ -475,6 +493,7 @@ def create_task(payload: TaskCreate, username: str = Depends(get_current_usernam
         task_status=TaskStatus.TODO,
         due_date=payload.due_date,
         priority=payload.priority,
+        task_tags=normalize_tags(payload.tags),
     )
     user_tasks[task_id] = new_task
     save_user_tasks(username, user_tasks)
@@ -510,7 +529,11 @@ def update_task_content(
         raise HTTPException(status_code=400, detail="Task title is required.")
 
     updated_task = task.model_copy(
-        update={"task_title": clean_title, "task_notes": payload.task_notes.strip()}
+        update={
+            "task_title": clean_title,
+            "task_notes": payload.task_notes.strip(),
+            "task_tags": normalize_tags(payload.task_tags),
+        }
     )
     user_tasks[task_id] = updated_task
     save_user_tasks(username, user_tasks)
