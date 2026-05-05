@@ -45,3 +45,17 @@ This is a separate FastAPI-based project for managing daily tasks.
   - You can enter multiple comma-separated tags in the filter; tasks matching any of the supplied tags will be shown.
   - The filter input has autocomplete suggestions populated from existing tags in your tasks.
 - Note: After pulling changes, restart the server so the backend recognizes the new `task_tags` field.
+
+### Multi-tag filter & Tag Match mode
+- You can now select multiple tags to filter by using the filter input. Add tags by typing and pressing Enter or comma — selected tags appear as chips.
+- Two tag-match modes are available:
+  - `OR` (default): show tasks that match any selected tag.
+  - `AND`: show tasks that match all selected tags.
+- Click the `x` on a chip to remove a selected tag; pressing Backspace on an empty input removes the last chip.
+- Clear resets selected tags and tag mode back to `OR`.
+- The frontend provides suggestions as you type (autocomplete) based on existing tags.
+
+Usage examples:
+- Single tag: `work` → shows tasks tagged `work`.
+- Multiple tags, OR mode: `work`, `urgent` → shows tasks tagged `work` OR `urgent`.
+- Multiple tags, AND mode: `work`, `urgent` → shows tasks tagged with both `work` AND `urgent`.
