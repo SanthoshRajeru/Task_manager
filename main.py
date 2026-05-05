@@ -37,6 +37,11 @@ class SortBy(str, Enum):
     DUE_DATE = "due_date"
 
 
+class TagFilterMode(str, Enum):
+    OR = "or"
+    AND = "and"
+
+
 class UserRegister(BaseModel):
     username: str = Field(min_length=3, max_length=50)
     password: str = Field(min_length=6, max_length=128)
@@ -357,6 +362,7 @@ def get_tasks(
     status: TaskStatus | None = None,
     priority: TaskPriority | None = None,
     tag: str | None = None,
+    tag_mode: TagFilterMode = TagFilterMode.OR,
     q: str | None = None,
     sort_by: SortBy = SortBy.TASK_ID,
     username: str = Depends(get_current_username),
@@ -372,14 +378,23 @@ def get_tasks(
     if tag:
         requested_tags = [item.lower() for item in normalize_tag_filter(tag)]
         if requested_tags:
+            def task_matches_requested_tags(task: Task) -> bool:
+                task_tags_lower = [existing_tag.lower() for existing_tag in task.task_tags]
+                if tag_mode == TagFilterMode.AND:
+                    return all(
+                        any(requested in existing_tag for existing_tag in task_tags_lower)
+                        for requested in requested_tags
+                    )
+                return any(
+                    requested in existing_tag
+                    for existing_tag in task_tags_lower
+                    for requested in requested_tags
+                )
+
             filtered_tasks = [
                 task
                 for task in filtered_tasks
-                if any(
-                    requested in existing_tag.lower()
-                    for existing_tag in task.task_tags
-                    for requested in requested_tags
-                )
+                if task_matches_requested_tags(task)
             ]
 
     if q:

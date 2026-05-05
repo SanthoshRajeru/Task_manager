@@ -180,7 +180,7 @@
 
         .filter-row {
             display: grid;
-            grid-template-columns: 1.5fr 1fr 1fr 1fr 1fr auto;
+            grid-template-columns: 1.4fr 1fr 1fr 1fr 1fr 1fr auto;
             gap: 10px;
             margin-bottom: 16px;
         }
@@ -333,6 +333,36 @@
             color: #dbeafe;
             border: 1px solid rgba(125, 211, 252, 0.4);
             background: rgba(14, 116, 144, 0.26);
+        }
+
+        .filter-tag-chips {
+            margin: -6px 0 10px;
+            min-height: 24px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+        }
+
+        .filter-tag-chip {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 4px 8px;
+            border-radius: 999px;
+            font-size: 11px;
+            color: #dbeafe;
+            border: 1px solid rgba(125, 211, 252, 0.4);
+            background: rgba(14, 116, 144, 0.3);
+        }
+
+        .filter-tag-chip button {
+            border: none;
+            background: transparent;
+            color: #bfdbfe;
+            cursor: pointer;
+            font-size: 12px;
+            line-height: 1;
+            padding: 0;
         }
 
         .task-notes {
@@ -891,10 +921,15 @@
                     <option value="priority">Sort: Priority</option>
                     <option value="due_date">Sort: Due Date</option>
                 </select>
-                <input id="filter-tag" class="field" type="text" list="filter-tag-suggestions" placeholder="Filter by tag (single or comma separated)" />
+                <select id="filter-tag-mode" class="select">
+                    <option value="or" selected>Tag Match: OR</option>
+                    <option value="and">Tag Match: AND</option>
+                </select>
+                <input id="filter-tag" class="field" type="text" list="filter-tag-suggestions" placeholder="Type tag and press Enter/comma" />
                 <datalist id="filter-tag-suggestions"></datalist>
                 <button id="clear-filters" class="btn-ghost" type="button">Clear</button>
             </div>
+            <div id="filter-tag-chips" class="filter-tag-chips"></div>
             <div id="error" class="error"></div>
             <div id="task-list" class="task-list"></div>
         </section>
@@ -986,7 +1021,9 @@
         const filterStatusInput = document.getElementById("filter-status");
         const filterPriorityInput = document.getElementById("filter-priority");
         const sortByInput = document.getElementById("sort-by");
+        const filterTagModeInput = document.getElementById("filter-tag-mode");
         const filterTagInput = document.getElementById("filter-tag");
+        const filterTagChips = document.getElementById("filter-tag-chips");
         const filterTagSuggestions = document.getElementById("filter-tag-suggestions");
         const clearFiltersBtn = document.getElementById("clear-filters");
         const taskList = document.getElementById("task-list");
@@ -1010,6 +1047,7 @@
         let formDatePicker = null;
         let editingTaskId = null;
         const expandedDescriptionTaskIds = new Set();
+        const selectedFilterTags = [];
         let currentCalendarDate = new Date();
         let authToken = localStorage.getItem("task_manager_token") || "";
         let currentUsername = localStorage.getItem("task_manager_user") || "";
@@ -1244,13 +1282,60 @@
             )];
         }
 
+        function renderFilterTagChips() {
+            filterTagChips.innerHTML = "";
+            selectedFilterTags.forEach((tag, index) => {
+                const chip = document.createElement("span");
+                chip.className = "filter-tag-chip";
+                chip.textContent = tag;
+
+                const removeBtn = document.createElement("button");
+                removeBtn.type = "button";
+                removeBtn.setAttribute("aria-label", `Remove ${tag} tag filter`);
+                removeBtn.textContent = "x";
+                removeBtn.addEventListener("click", async () => {
+                    selectedFilterTags.splice(index, 1);
+                    renderFilterTagChips();
+                    await fetchTasks();
+                });
+
+                chip.appendChild(removeBtn);
+                filterTagChips.appendChild(chip);
+            });
+        }
+
+        function addFilterTags(rawValue) {
+            const parsedTags = parseTagsInput(rawValue);
+            let changed = false;
+
+            parsedTags.forEach((tag) => {
+                if (!selectedFilterTags.some((item) => item.toLowerCase() === tag.toLowerCase())) {
+                    selectedFilterTags.push(tag);
+                    changed = true;
+                }
+            });
+
+            if (changed) {
+                renderFilterTagChips();
+            }
+            return changed;
+        }
+
+        function getActiveTagFilterQuery() {
+            if (selectedFilterTags.length) {
+                return selectedFilterTags.join(",");
+            }
+            return filterTagInput.value.trim();
+        }
+
         function buildTasksUrl() {
             const params = new URLSearchParams();
             const q = filterQInput.value.trim();
             const status = filterStatusInput.value;
             const priority = filterPriorityInput.value;
             const sortBy = sortByInput.value;
-            const tag = filterTagInput.value.trim();
+            const tag = getActiveTagFilterQuery();
+            const tagMode = filterTagModeInput.value;
 
             if (q) {
                 params.set("q", q);
@@ -1266,6 +1351,7 @@
             }
             if (tag) {
                 params.set("tag", tag);
+                params.set("tag_mode", tagMode || "or");
             }
 
             const queryString = params.toString();
@@ -1861,8 +1947,49 @@
             await fetchTasks();
         });
 
-        filterTagInput.addEventListener("input", async () => {
+        filterTagModeInput.addEventListener("change", async () => {
             await fetchTasks();
+        });
+
+        filterTagInput.addEventListener("keydown", async (event) => {
+            if (event.key === "Enter" || event.key === ",") {
+                event.preventDefault();
+                const changed = addFilterTags(filterTagInput.value);
+                filterTagInput.value = "";
+                if (changed) {
+                    await fetchTasks();
+                }
+            } else if (
+                event.key === "Backspace" &&
+                !filterTagInput.value.trim() &&
+                selectedFilterTags.length
+            ) {
+                selectedFilterTags.pop();
+                renderFilterTagChips();
+                await fetchTasks();
+            }
+        });
+
+        filterTagInput.addEventListener("change", async () => {
+            const changed = addFilterTags(filterTagInput.value);
+            filterTagInput.value = "";
+            if (changed) {
+                await fetchTasks();
+            }
+        });
+
+        filterTagInput.addEventListener("input", async () => {
+            if (filterTagInput.value.includes(",")) {
+                const changed = addFilterTags(filterTagInput.value);
+                filterTagInput.value = "";
+                if (changed) {
+                    await fetchTasks();
+                }
+                return;
+            }
+            if (!selectedFilterTags.length) {
+                await fetchTasks();
+            }
         });
 
         clearFiltersBtn.addEventListener("click", async () => {
@@ -1870,7 +1997,10 @@
             filterStatusInput.value = "";
             filterPriorityInput.value = "";
             sortByInput.value = "task_id";
+            filterTagModeInput.value = "or";
             filterTagInput.value = "";
+            selectedFilterTags.length = 0;
+            renderFilterTagChips();
             await fetchTasks();
         });
 
