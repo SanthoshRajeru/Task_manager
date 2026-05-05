@@ -35,3 +35,13 @@ This is a separate FastAPI-based project for managing daily tasks.
 - It activates the FastAPI environment and starts `main.py`.
 - If port `8010` is already in use, it assumes the server is already running and opens `http://127.0.0.1:8010` instead of starting a duplicate server.
 - If startup fails, it shows the error message and keeps the window open so you can read the issue.
+
+## Tags and Tag Filter
+- Tasks now support tags. When creating or editing a task you can enter tags as a comma-separated list (e.g. `work, urgent`).
+- Tags are normalized on the server (trimmed, case-insensitive de-duplication) before being saved.
+- The task list UI displays tags as pills on each task card.
+- The previous "Order: Asc/Desc" control was replaced by a "Filter by tag" input:
+  - Type a tag (or part of a tag) to filter tasks. The filter is case-insensitive and supports partial matches.
+  - You can enter multiple comma-separated tags in the filter; tasks matching any of the supplied tags will be shown.
+  - The filter input has autocomplete suggestions populated from existing tags in your tasks.
+- Note: After pulling changes, restart the server so the backend recognizes the new `task_tags` field.
